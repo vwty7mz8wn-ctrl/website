@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="ELUNEY 的极简贪吃蛇小游戏。">
+  <meta name="theme-color" content="#101112">
+  <title>贪吃蛇 - ELUNEY</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e8e9e7;
+      --muted: #a2a5a4;
+      --line: #383a3a;
+      --paper: #101112;
+      --panel: #171919;
+      --panel-hover: #202222;
+      --board: #0b0c0c;
+      --snake: #e8e9e7;
+      --food: #8d9190;
+      --font-sans: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--paper); }
+    body {
+      min-width: 320px;
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    button { font: inherit; }
+    a { color: inherit; text-decoration: none; }
+    .shell { width: min(1240px, calc(100% - 64px)); margin: 0 auto; }
+    .site-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 72px;
+      border-bottom: 1px solid var(--line);
+    }
+    .wordmark, .back, .label, .value, .hint, .touch-title, .footer-copy {
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .wordmark { font-weight: 600; letter-spacing: .22em; }
+    .back, .hint, .touch-title, .footer-copy, .label { color: var(--muted); }
+    .back:hover { color: var(--ink); }
+    .wordmark:focus-visible, .back:focus-visible, .restart:focus-visible, .direction:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+
+    main { padding: clamp(3.5rem, 7vw, 6.5rem) 0 4rem; }
+    .game-layout { display: grid; grid-template-columns: minmax(220px, .6fr) minmax(0, 1.4fr); gap: clamp(2.5rem, 7vw, 8rem); align-items: start; }
+    .intro { position: sticky; top: 2rem; }
+    h1 {
+      margin: 0;
+      font-size: clamp(3.1rem, 6.6vw, 6.5rem);
+      font-weight: 500;
+      letter-spacing: -.075em;
+      line-height: .87;
+    }
+    .description { max-width: 18rem; margin: 1.6rem 0 0; color: var(--muted); font-size: 1rem; line-height: 1.65; }
+    .hint { max-width: 20rem; margin: 3rem 0 0; line-height: 1.65; }
+
+    .play-area { min-width: 0; }
+    .scoreboard { display: grid; grid-template-columns: 1fr 1fr auto; border: 1px solid var(--line); border-bottom: 0; }
+    .stat { min-width: 0; padding: .85rem 1rem; border-right: 1px solid var(--line); }
+    .stat:last-of-type { border-right: 0; }
+    .label { display: block; margin-bottom: .25rem; }
+    .value { display: block; color: var(--ink); font-size: 1.3rem; font-weight: 600; letter-spacing: .03em; }
+    .restart {
+      min-width: 104px;
+      border: 0;
+      border-left: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: .7rem;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      transition: background-color 160ms ease, transform 160ms ease;
+    }
+    .restart:hover { background: var(--panel-hover); }
+    .restart:active, .direction:active { transform: translateY(1px); }
+
+    .board-wrap { position: relative; width: 100%; border: 1px solid var(--line); background: var(--board); }
+    canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; }
+    .message {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+      background: rgb(11 12 12 / .83);
+      text-align: center;
+      transition: opacity 180ms ease, visibility 180ms ease;
+    }
+    .message[hidden] { display: none; }
+    .message-copy { max-width: 20rem; }
+    .message-title { margin: 0; font-size: clamp(1.7rem, 4vw, 2.8rem); font-weight: 500; letter-spacing: -.055em; }
+    .message-text { margin: .8rem 0 0; color: var(--muted); line-height: 1.6; }
+    .message-score { margin: 1.2rem 0 0; font-family: var(--font-mono); font-size: .75rem; letter-spacing: .1em; text-transform: uppercase; }
+
+    .touch-controls { display: grid; justify-content: center; gap: .85rem; margin-top: 1.5rem; }
+    .touch-title { margin: 0; text-align: center; }
+    .direction-grid { display: grid; grid-template-columns: repeat(3, 58px); gap: 6px; }
+    .direction {
+      display: grid;
+      width: 58px;
+      height: 50px;
+      place-items: center;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 1.2rem;
+      transition: background-color 160ms ease, transform 160ms ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .direction:hover { background: var(--panel-hover); }
+    .direction.up { grid-column: 2; }
+    .direction.left { grid-column: 1; grid-row: 2; }
+    .direction.down { grid-column: 2; grid-row: 2; }
+    .direction.right { grid-column: 3; grid-row: 2; }
+    .site-footer { display: flex; justify-content: space-between; gap: 1rem; margin-top: 5rem; padding: 1.5rem 0 2rem; border-top: 1px solid var(--line); }
+    .footer-copy { margin: 0; }
+
+    @media (min-width: 761px) { .touch-controls { display: none; } }
+    @media (max-width: 760px) {
+      .shell { width: min(100% - 32px, 1240px); }
+      .site-header { height: 64px; }
+      main { padding-top: 3.5rem; }
+      .game-layout { grid-template-columns: 1fr; gap: 2.6rem; }
+      .intro { position: static; }
+      .description { margin-top: 1.25rem; }
+      .hint { margin-top: 1.5rem; }
+      .stat { padding: .75rem; }
+      .restart { min-width: 78px; padding: 0 .5rem; }
+      .site-footer { margin-top: 3.5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .restart, .direction, .message { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="site-header">
+      <a class="wordmark" href="/" aria-label="ELUNEY 首页">ELUNEY</a>
+      <a class="back" href="/games/">游戏列表</a>
+    </header>
+
+    <main>
+      <section class="game-layout" aria-labelledby="game-title">
+        <div class="intro">
+          <h1 id="game-title">贪吃蛇</h1>
+          <p class="description">保持节奏，别碰边界，也别撞到自己。</p>
+          <p class="hint">键盘：方向键 / WASD<br>手机：使用下方方向键</p>
+        </div>
+
+        <div class="play-area">
+          <div class="scoreboard" aria-label="游戏分数">
+            <div class="stat">
+              <span class="label">当前分数</span>
+              <strong class="value" id="score">0</strong>
+            </div>
+            <div class="stat">
+              <span class="label">最高分</span>
+              <strong class="value" id="best-score">0</strong>
+            </div>
+            <button class="restart" id="restart" type="button">重新开始</button>
+          </div>
+
+          <div class="board-wrap">
+            <canvas id="board" width="600" height="600" role="img" aria-label="贪吃蛇游戏区域"></canvas>
+            <div class="message" id="message">
+              <div class="message-copy">
+                <h2 class="message-title" id="message-title">准备开始</h2>
+                <p class="message-text" id="message-text">按方向键、WASD 或触控方向键开始。</p>
+                <p class="message-score" id="message-score" hidden></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="touch-controls" aria-label="触控方向键">
+            <p class="touch-title">方向控制</p>
+            <div class="direction-grid">
+              <button class="direction up" type="button" data-direction="up" aria-label="向上">↑</button>
+              <button class="direction left" type="button" data-direction="left" aria-label="向左">←</button>
+              <button class="direction down" type="button" data-direction="down" aria-label="向下">↓</button>
+              <button class="direction right" type="button" data-direction="right" aria-label="向右">→</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p class="footer-copy">ELUNEY</p>
+      <p class="footer-copy">Snake</p>
+    </footer>
+  </div>
+
+  <script>
+    (() => {
+      const gridSize = 20;
+      const canvas = document.querySelector('#board');
+      const context = canvas.getContext('2d');
+      const scoreElement = document.querySelector('#score');
+      const bestScoreElement = document.querySelector('#best-score');
+      const restartButton = document.querySelector('#restart');
+      const message = document.querySelector('#message');
+      const messageTitle = document.querySelector('#message-title');
+      const messageText = document.querySelector('#message-text');
+      const messageScore = document.querySelector('#message-score');
+      const directions = {
+        up: { x: 0, y: -1 },
+        down: { x: 0, y: 1 },
+        left: { x: -1, y: 0 },
+        right: { x: 1, y: 0 }
+      };
+      const keyDirections = {
+        ArrowUp: 'up', w: 'up', W: 'up',
+        ArrowDown: 'down', s: 'down', S: 'down',
+        ArrowLeft: 'left', a: 'left', A: 'left',
+        ArrowRight: 'right', d: 'right', D: 'right'
+      };
+
+      let snake;
+      let food;
+      let direction;
+      let queuedDirection;
+      let score;
+      let bestScore = readBestScore();
+      let state = 'idle';
+      let timerId;
+
+      function readBestScore() {
+        try {
+          return Number.parseInt(localStorage.getItem('eluney-snake-best') || '0', 10) || 0;
+        } catch (error) {
+          return 0;
+        }
+      }
+
+      function saveBestScore() {
+        try {
+          localStorage.setItem('eluney-snake-best', String(bestScore));
+        } catch (error) {
+          // The game continues if browser storage is unavailable.
+        }
+      }
+
+      function randomFood() {
+        const available = [];
+        for (let y = 0; y < gridSize; y += 1) {
+          for (let x = 0; x < gridSize; x += 1) {
+            if (!snake.some(segment => segment.x === x && segment.y === y)) {
+              available.push({ x, y });
+            }
+          }
+        }
+        return available[Math.floor(Math.random() * available.length)];
+      }
+
+      function resetGame() {
+        window.clearTimeout(timerId);
+        snake = [
+          { x: 10, y: 10 },
+          { x: 9, y: 10 },
+          { x: 8, y: 10 }
+        ];
+        direction = directions.right;
+        queuedDirection = directions.right;
+        score = 0;
+        food = randomFood();
+        state = 'idle';
+        updateScoreboard();
+        showMessage('准备开始', '按方向键、WASD 或触控方向键开始。');
+        render();
+      }
+
+      function startGame() {
+        if (state === 'running') return;
+        if (state === 'gameover') resetGame();
+        state = 'running';
+        hideMessage();
+        scheduleNextTurn();
+      }
+
+      function scheduleNextTurn() {
+        const speed = Math.max(70, 130 - score * 2);
+        timerId = window.setTimeout(tick, speed);
+      }
+
+      function tick() {
+        direction = queuedDirection;
+        const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+        const eatsFood = head.x === food.x && head.y === food.y;
+        const bodyToCheck = eatsFood ? snake : snake.slice(0, -1);
+        const hitsWall = head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize;
+        const hitsSelf = bodyToCheck.some(segment => segment.x === head.x && segment.y === head.y);
+
+        if (hitsWall || hitsSelf) {
+          finishGame();
+          return;
+        }
+
+        snake.unshift(head);
+        if (eatsFood) {
+          score += 1;
+          if (score > bestScore) {
+            bestScore = score;
+            saveBestScore();
+          }
+          food = randomFood();
+          updateScoreboard();
+        } else {
+          snake.pop();
+        }
+        render();
+        scheduleNextTurn();
+      }
+
+      function finishGame() {
+        state = 'gameover';
+        updateScoreboard();
+        showMessage('本局结束', '再来一局，试着超过最高分。', `本局分数 ${score}`);
+        render();
+      }
+
+      function changeDirection(name) {
+        const next = directions[name];
+        if (!next) return;
+        const isReverse = next.x === -direction.x && next.y === -direction.y;
+        if (isReverse) return;
+        if (state === 'gameover') resetGame();
+        queuedDirection = next;
+        startGame();
+      }
+
+      function updateScoreboard() {
+        scoreElement.textContent = score;
+        bestScoreElement.textContent = bestScore;
+      }
+
+      function showMessage(title, text, scoreText = '') {
+        messageTitle.textContent = title;
+        messageText.textContent = text;
+        messageScore.textContent = scoreText;
+        messageScore.hidden = !scoreText;
+        message.hidden = false;
+      }
+
+      function hideMessage() {
+        message.hidden = true;
+      }
+
+      function render() {
+        const cell = canvas.width / gridSize;
+        context.fillStyle = '#0b0c0c';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        context.strokeStyle = '#171919';
+        context.lineWidth = 1;
+        for (let index = 1; index < gridSize; index += 1) {
+          const position = Math.round(index * cell) + .5;
+          context.beginPath();
+          context.moveTo(position, 0);
+          context.lineTo(position, canvas.height);
+          context.moveTo(0, position);
+          context.lineTo(canvas.width, position);
+          context.stroke();
+        }
+
+        context.fillStyle = '#8d9190';
+        context.fillRect(food.x * cell + 4, food.y * cell + 4, cell - 8, cell - 8);
+
+        snake.forEach((segment, index) => {
+          context.fillStyle = index === 0 ? '#e8e9e7' : '#c8cac8';
+          context.fillRect(segment.x * cell + 2, segment.y * cell + 2, cell - 4, cell - 4);
+        });
+      }
+
+      document.addEventListener('keydown', event => {
+        const name = keyDirections[event.key];
+        if (!name) return;
+        event.preventDefault();
+        changeDirection(name);
+      });
+
+      document.querySelectorAll('[data-direction]').forEach(button => {
+        button.addEventListener('click', () => changeDirection(button.dataset.direction));
+      });
+
+      restartButton.addEventListener('click', resetGame);
+      resetGame();
+    })();
+  </script>
+</body>
+</html>
