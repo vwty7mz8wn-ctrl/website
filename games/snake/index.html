@@ -33,6 +33,7 @@
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
+    body.modal-open { overflow: hidden; }
     button { font: inherit; }
     a { color: inherit; text-decoration: none; }
     .shell { width: min(1240px, calc(100% - 64px)); margin: 0 auto; }
@@ -52,7 +53,7 @@
     .wordmark { font-weight: 600; letter-spacing: .22em; }
     .back, .hint, .touch-title, .footer-copy, .label { color: var(--muted); }
     .back:hover { color: var(--ink); }
-    .wordmark:focus-visible, .back:focus-visible, .restart:focus-visible, .direction:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
+    .wordmark:focus-visible, .back:focus-visible, .restart:focus-visible, .direction:focus-visible, .dialog-button:focus-visible, .dialog-close:focus-visible, .code-input:focus-visible { outline: 2px solid var(--ink); outline-offset: 4px; }
 
     main { padding: clamp(3.5rem, 7vw, 6.5rem) 0 4rem; }
     .game-layout { display: grid; grid-template-columns: minmax(220px, .6fr) minmax(0, 1.4fr); gap: clamp(2.5rem, 7vw, 8rem); align-items: start; }
@@ -88,6 +89,21 @@
     }
     .restart:hover { background: var(--panel-hover); }
     .restart:active, .direction:active { transform: translateY(1px); }
+    .game-state {
+      display: flex;
+      align-items: center;
+      min-height: 36px;
+      margin: 0;
+      padding: .55rem 1rem;
+      border: 1px solid var(--line);
+      border-bottom: 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: .66rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .game-state[data-cheat="true"] { color: var(--ink); }
 
     .board-wrap { position: relative; width: 100%; border: 1px solid var(--line); background: var(--board); }
     canvas { display: block; width: 100%; height: auto; aspect-ratio: 1; image-rendering: pixelated; }
@@ -132,6 +148,95 @@
     .site-footer { display: flex; justify-content: space-between; gap: 1rem; margin-top: 5rem; padding: 1.5rem 0 2rem; border-top: 1px solid var(--line); }
     .footer-copy { margin: 0; }
 
+    .verification-modal {
+      position: fixed;
+      z-index: 10;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 1.5rem;
+      background: rgb(11 12 12 / .78);
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+    .verification-modal[hidden] { display: none; }
+    .verification-dialog {
+      width: min(100%, 430px);
+      border: 1px solid var(--ink);
+      background: var(--panel);
+      box-shadow: 0 24px 64px rgb(0 0 0 / .32);
+    }
+    .dialog-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 52px;
+      padding: 0 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .dialog-label {
+      margin: 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: .66rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .dialog-close {
+      padding: .35rem 0 .35rem .8rem;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: .66rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .dialog-close:hover { color: var(--ink); }
+    .dialog-body { padding: 1.5rem; }
+    .dialog-title { margin: 0; font-size: 1.55rem; font-weight: 500; letter-spacing: -.05em; }
+    .dialog-copy { margin: .65rem 0 1.4rem; color: var(--muted); line-height: 1.6; }
+    .code-label {
+      display: block;
+      margin-bottom: .55rem;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: .66rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .code-input {
+      width: 100%;
+      height: 46px;
+      padding: 0 .8rem;
+      border: 1px solid var(--line);
+      border-radius: 0;
+      background: var(--board);
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 1rem;
+    }
+    .code-input::placeholder { color: #686b6a; }
+    .code-input[aria-invalid="true"] { border-color: var(--ink); }
+    .dialog-error { min-height: 1.25rem; margin: .6rem 0 0; color: var(--muted); font-size: .85rem; }
+    .dialog-actions { display: flex; justify-content: flex-end; margin-top: 1.25rem; }
+    .dialog-button {
+      min-width: 92px;
+      min-height: 42px;
+      border: 1px solid var(--ink);
+      border-radius: 0;
+      background: var(--ink);
+      color: var(--paper);
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    .dialog-button:active, .dialog-close:active { transform: translateY(1px); }
+
     @media (min-width: 761px) { .touch-controls { display: none; } }
     @media (max-width: 760px) {
       .shell { width: min(100% - 32px, 1240px); }
@@ -144,9 +249,11 @@
       .stat { padding: .75rem; }
       .restart { min-width: 78px; padding: 0 .5rem; }
       .site-footer { margin-top: 3.5rem; }
+      .dialog-body { padding: 1.25rem; }
     }
     @media (prefers-reduced-motion: reduce) {
       .restart, .direction, .message { transition: none; }
+      .verification-modal { backdrop-filter: none; -webkit-backdrop-filter: none; }
     }
   </style>
 </head>
@@ -177,6 +284,7 @@
             </div>
             <button class="restart" id="restart" type="button">重新开始</button>
           </div>
+          <p class="game-state" id="game-state" data-cheat="false" role="status" aria-live="polite">Normal mode</p>
 
           <div class="board-wrap">
             <canvas id="board" width="600" height="600" role="img" aria-label="贪吃蛇游戏区域"></canvas>
@@ -208,6 +316,27 @@
     </footer>
   </div>
 
+  <div class="verification-modal" id="verification-modal" hidden>
+    <section class="verification-dialog" role="dialog" aria-modal="true" aria-labelledby="verification-title" aria-describedby="verification-copy">
+      <header class="dialog-header">
+        <p class="dialog-label">Access check</p>
+        <button class="dialog-close" id="dialog-close" type="button">关闭</button>
+      </header>
+      <div class="dialog-body">
+        <h2 class="dialog-title" id="verification-title">验证</h2>
+        <p class="dialog-copy" id="verification-copy">输入访问口令以继续。</p>
+        <form id="verification-form">
+          <label class="code-label" for="code-input">口令</label>
+          <input class="code-input" id="code-input" name="code" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="输入内容">
+          <p class="dialog-error" id="dialog-error" role="alert" aria-live="assertive"></p>
+          <div class="dialog-actions">
+            <button class="dialog-button" type="submit">确认</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+
   <script>
     (() => {
       const gridSize = 20;
@@ -220,6 +349,12 @@
       const messageTitle = document.querySelector('#message-title');
       const messageText = document.querySelector('#message-text');
       const messageScore = document.querySelector('#message-score');
+      const gameState = document.querySelector('#game-state');
+      const verificationModal = document.querySelector('#verification-modal');
+      const verificationForm = document.querySelector('#verification-form');
+      const codeInput = document.querySelector('#code-input');
+      const dialogError = document.querySelector('#dialog-error');
+      const dialogClose = document.querySelector('#dialog-close');
       const directions = {
         up: { x: 0, y: -1 },
         down: { x: 0, y: 1 },
@@ -232,6 +367,7 @@
         ArrowLeft: 'left', a: 'left', A: 'left',
         ArrowRight: 'right', d: 'right', D: 'right'
       };
+      const konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 
       let snake;
       let food;
@@ -241,6 +377,9 @@
       let bestScore = readBestScore();
       let state = 'idle';
       let timerId;
+      let cheatMode = false;
+      let konamiProgress = [];
+      let previouslyFocusedElement;
 
       function readBestScore() {
         try {
@@ -303,19 +442,23 @@
       function tick() {
         direction = queuedDirection;
         const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+        const hitsWall = head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize;
+        if (cheatMode && hitsWall) {
+          head.x = (head.x + gridSize) % gridSize;
+          head.y = (head.y + gridSize) % gridSize;
+        }
         const eatsFood = head.x === food.x && head.y === food.y;
         const bodyToCheck = eatsFood ? snake : snake.slice(0, -1);
-        const hitsWall = head.x < 0 || head.x >= gridSize || head.y < 0 || head.y >= gridSize;
         const hitsSelf = bodyToCheck.some(segment => segment.x === head.x && segment.y === head.y);
 
-        if (hitsWall || hitsSelf) {
+        if (!cheatMode && (hitsWall || hitsSelf)) {
           finishGame();
           return;
         }
 
         snake.unshift(head);
         if (eatsFood) {
-          score += 1;
+          score += cheatMode ? 2 : 1;
           if (score > bestScore) {
             bestScore = score;
             saveBestScore();
@@ -351,6 +494,11 @@
         bestScoreElement.textContent = bestScore;
       }
 
+      function updateGameState() {
+        gameState.textContent = cheatMode ? 'Cheat mode enabled' : 'Normal mode';
+        gameState.dataset.cheat = String(cheatMode);
+      }
+
       function showMessage(title, text, scoreText = '') {
         messageTitle.textContent = title;
         messageText.textContent = text;
@@ -361,6 +509,60 @@
 
       function hideMessage() {
         message.hidden = true;
+      }
+
+      function keyForKonami(key) {
+        if (key.startsWith('Arrow')) return key;
+        const normalized = key.toLowerCase();
+        return normalized === 'a' || normalized === 'b' ? normalized : null;
+      }
+
+      function tracksKonamiCode(key) {
+        const input = keyForKonami(key);
+        if (!input || cheatMode) {
+          if (!input) konamiProgress = [];
+          return false;
+        }
+        konamiProgress.push(input);
+        if (konamiProgress.length > konamiCode.length) konamiProgress.shift();
+        const isMatch = konamiCode.every((value, index) => konamiProgress[index] === value);
+        if (isMatch) {
+          konamiProgress = [];
+          return true;
+        }
+        return false;
+      }
+
+      function openVerification() {
+        previouslyFocusedElement = document.activeElement;
+        if (state === 'running') {
+          window.clearTimeout(timerId);
+          state = 'paused';
+        }
+        dialogError.textContent = '';
+        codeInput.removeAttribute('aria-invalid');
+        verificationForm.reset();
+        verificationModal.hidden = false;
+        document.body.classList.add('modal-open');
+        window.requestAnimationFrame(() => codeInput.focus());
+      }
+
+      function closeVerification() {
+        verificationModal.hidden = true;
+        document.body.classList.remove('modal-open');
+        dialogError.textContent = '';
+        codeInput.removeAttribute('aria-invalid');
+        if (previouslyFocusedElement instanceof HTMLElement) previouslyFocusedElement.focus();
+        if (state === 'paused') {
+          state = 'running';
+          scheduleNextTurn();
+        }
+      }
+
+      function enableCheatMode() {
+        cheatMode = true;
+        updateGameState();
+        closeVerification();
       }
 
       function render() {
@@ -390,6 +592,19 @@
       }
 
       document.addEventListener('keydown', event => {
+        if (!verificationModal.hidden) {
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            closeVerification();
+          }
+          return;
+        }
+        if (event.key === 'Escape') return;
+        if (tracksKonamiCode(event.key)) {
+          event.preventDefault();
+          openVerification();
+          return;
+        }
         const name = keyDirections[event.key];
         if (!name) return;
         event.preventDefault();
@@ -401,6 +616,18 @@
       });
 
       restartButton.addEventListener('click', resetGame);
+      dialogClose.addEventListener('click', closeVerification);
+      verificationForm.addEventListener('submit', event => {
+        event.preventDefault();
+        if (codeInput.value.trim().toLowerCase() === 'mario') {
+          enableCheatMode();
+          return;
+        }
+        codeInput.setAttribute('aria-invalid', 'true');
+        dialogError.textContent = '口令不正确，请重试。';
+        codeInput.select();
+      });
+      updateGameState();
       resetGame();
     })();
   </script>
