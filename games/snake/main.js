@@ -8,6 +8,7 @@ import { MapSystem } from './systems/MapSystem.js';
 import { MechanicSystem } from './systems/MechanicSystem.js';
 import { CameraSystem } from './systems/CameraSystem.js';
 import { RenderSystem } from './systems/RenderSystem.js';
+import { AssetLoader } from './systems/AssetLoader.js';
 import { UISystem } from './systems/UISystem.js';
 import { LocalStorageAdapter } from './storage/LocalStorageAdapter.js';
 import { SaveService } from './services/SaveService.js';
@@ -42,9 +43,12 @@ const mapSystem = new MapSystem(mapRegistry, foodRegistry, CONFIG, eventBus);
 const buffSystem = new BuffSystem(buffRegistry, eventBus);
 const cameraSystem = new CameraSystem(eventBus);
 const mechanicSystem = new MechanicSystem(mechanicRegistry);
-const renderSystem = new RenderSystem(document.getElementById('board'), CONFIG);
+const renderSystem = new RenderSystem(document.getElementById('board'), CONFIG, new AssetLoader());
 const game = new Game({ config:CONFIG, eventBus, mapSystem, cameraSystem, buffSystem, mechanicSystem, skinSystem, renderSystem });
-const redeemService = new RedeemService([{ code:CONFIG.creatorRedeemCode, type:'skin', id:'creator', message:'CREATOR SKIN UNLOCKED' }]);
+const redeemService = new RedeemService([
+  { code:CONFIG.creatorRedeemCode, type:'skin', id:'creator', message:'CREATOR SKIN UNLOCKED' },
+  ...skins.filter(skin=>skin.unlock?.type==='redeem'&&skin.unlock.code).map(skin=>({ code:skin.unlock.code, type:'skin', id:skin.id, message:skin.unlock.message||`${skin.displayName.toUpperCase()} UNLOCKED` }))
+]);
 const ui = new UISystem({ game, skinSystem, profileService, redeemService, saveService, eventBus, foodRegistry });
 ui.bind();
 const input = new Input({ target:document, wrap:document.getElementById('board-wrap'), directions:CONFIG.directions, swipeMin:CONFIG.input.swipeMin, onDirection:name=>ui.direction(name), onSpace:()=>ui.toggleSpace(), onRestart:()=>ui.restart(), onPausedKey:key=>ui.pausedKey(key), onEscape:()=>ui.escape() });
