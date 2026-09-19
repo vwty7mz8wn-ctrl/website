@@ -158,3 +158,54 @@ Add one definition in `content/mechanics.js`, register it in `main.js`, and atta
 ## Constraints
 
 Keep the game dependency-free, static and black, white and gray. Do not add framework state libraries, a full ECS, secret credentials or speculative empty content folders. The Creator redeem constant remains a local easter egg, not authentication.
+
+## Grid, viewport and rendering
+
+Game logic uses grid and world coordinates only: one snake segment at `{ x:5, y:8 }` occupies exactly one logical cell. `GridSystem` keeps the active map's `grid.cols` and `grid.rows`, converts grid coordinates to world units (currently one grid cell equals one world unit), and never reads Canvas or DOM dimensions.
+
+`LayoutSystem` owns the viewport's screen-pixel size. It observes the available panel width, calculates `cellSize` from the active map grid, and clamps it with `CONFIG.layout.minCellSize` and `CONFIG.layout.maxCellSize`. It then sizes the Canvas backing store and exposes `worldToScreen(world, camera)`. A viewport is the camera window only: HUD, setup controls, overlays and mobile controls remain DOM UI outside the world coordinate system.
+
+`CameraSystem` exposes world `x` and `y`. `RenderSystem` composes the systems as `grid -> world -> screen`, using `screen = (world - camera) * cellSize`. Normal uses a fixed camera; Outside continues to use its follow camera. Map definitions declare their viewport grid:
+
+```js
+{ id:'normal', grid:{ cols:20, rows:20 }, cameraMode:'fixed' }
+```
+
+The map's grid is not a collision-size override. Collision and movement remain grid based in `core/`.
+
+## Render profiles
+
+Skins can optionally declare `renderProfile`. Missing fields merge with `CONFIG.render.defaultProfile`:
+
+```js
+{
+  headScale: 1,
+  bodyScale: .90,
+  tailScale: .90,
+  cornerScale: .90,
+  overlapRatio: .04,
+  headOffsetX: 0,
+  headOffsetY: 0,
+  bodyOffsetX: 0,
+  bodyOffsetY: 0,
+  tailOffsetX: 0,
+  tailOffsetY: 0,
+  cornerOffsetX: 0,
+  cornerOffsetY: 0,
+  smoothing: true
+}
+```
+
+Scales, offsets and overlap are visual only. A larger `headScale` may draw beyond a cell, but it never changes length, collision, movement, turn rules or map bounds. Offsets are measured in cell units. `smoothing: false` is available for future pixel-art skins; the renderer applies the selected profile through `ctx.imageSmoothingEnabled`.
+
+`getSegmentVisualType(previous, current, next)` chooses horizontal, vertical or one of four corners from neighboring grid coordinates. Head direction comes from the current snake direction; tail direction comes from the tail and its preceding segment. Every requested asset tries its own skin first, then Default assets when available, then a same-axis body resource, before falling back to the safe geometric Default renderer.
+
+When adding a skin with standard image resources, set `renderAssets:true`, register it in `content/skins.js`, and add a `renderProfile` only when its art needs one. Skins without `renderAssets` use the safe geometric renderer and make no missing-file requests. No `Snake.js`, collision or `Game.js` changes are required for a large head or wide body.
+
+## StartScreen and overlay priority
+
+`UISystem` owns the viewport overlays. In `READY`, it displays `StartScreen` with the active skin name/preview, difficulty choices and a real start button. Click, Enter and Space start the game; touch direction buttons and swipes intentionally do nothing until the game is running. Difficulty changes remain limited to `READY` and `GAME_OVER`.
+
+Overlay priority is `MODAL > GAME_OVER > PAUSED > READY > world`. A modal changes the game state to `MODAL`, so Start and Pause controls cannot respond behind it. The HUD is outside the Canvas and never follows the camera.
+
+For visual debugging only, set `CONFIG.debug.drawCollisionCells` with `CONFIG.debug.enabled`; it outlines the true one-cell collision bounds without exposing the setting to normal players.
