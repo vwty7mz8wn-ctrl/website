@@ -7,6 +7,8 @@ import { BuffSystem } from './systems/BuffSystem.js';
 import { MapSystem } from './systems/MapSystem.js';
 import { MechanicSystem } from './systems/MechanicSystem.js';
 import { CameraSystem } from './systems/CameraSystem.js';
+import { GridSystem } from './systems/GridSystem.js';
+import { LayoutSystem } from './systems/LayoutSystem.js';
 import { RenderSystem } from './systems/RenderSystem.js';
 import { AssetLoader } from './systems/AssetLoader.js';
 import { UISystem } from './systems/UISystem.js';
@@ -42,9 +44,12 @@ skinSystem.load();
 const mapSystem = new MapSystem(mapRegistry, foodRegistry, CONFIG, eventBus);
 const buffSystem = new BuffSystem(buffRegistry, eventBus);
 const cameraSystem = new CameraSystem(eventBus);
+const gridSystem = new GridSystem(mapSystem.current.grid);
+const layoutSystem = new LayoutSystem({ viewport:document.getElementById('board-wrap'), canvas:document.getElementById('board'), gridSystem, config:CONFIG, eventBus });
 const mechanicSystem = new MechanicSystem(mechanicRegistry);
-const renderSystem = new RenderSystem(document.getElementById('board'), CONFIG, new AssetLoader());
+const renderSystem = new RenderSystem(document.getElementById('board'), CONFIG, new AssetLoader(), gridSystem, layoutSystem);
 const game = new Game({ config:CONFIG, eventBus, mapSystem, cameraSystem, buffSystem, mechanicSystem, skinSystem, renderSystem });
+layoutSystem.setOnChange(()=>game.render());
 const redeemService = new RedeemService([
   { code:CONFIG.creatorRedeemCode, type:'skin', id:'creator', message:'CREATOR SKIN UNLOCKED' },
   ...skins.filter(skin=>skin.unlock?.type==='redeem'&&skin.unlock.code).map(skin=>({ code:skin.unlock.code, type:'skin', id:skin.id, message:skin.unlock.message||`${skin.displayName.toUpperCase()} UNLOCKED` }))
@@ -56,4 +61,4 @@ input.bind();
 if (CONFIG.difficulty[saveService.save.settings.difficulty]) game.context.difficulty = saveService.save.settings.difficulty;
 game.reset();
 
-if (CONFIG.debug) window.snakeDebug = { game, eventBus, registries:{ skinRegistry, buffRegistry, foodRegistry, mapRegistry, mechanicRegistry, eventRegistry, uiThemeRegistry }, saveService };
+if (CONFIG.debug.enabled) window.snakeDebug = { game, eventBus, gridSystem, layoutSystem, registries:{ skinRegistry, buffRegistry, foodRegistry, mapRegistry, mechanicRegistry, eventRegistry, uiThemeRegistry }, saveService };
