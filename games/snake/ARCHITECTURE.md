@@ -214,7 +214,7 @@ For visual debugging only, set `CONFIG.debug.drawCollisionCells` with `CONFIG.de
 
 `Input` yields to editable targets (`input`, `textarea`, `select` and editable content), so text entry can never steer, pause, restart or invoke a skill. It translates keyboard and swipe events into neutral UI actions.
 
-The paused Konami sequence uses that same action stream: directions, `SKILL_B` and `SKILL_A`. Lowercase `a` stays WASD-left; uppercase `A` (Shift+A) invokes Boost, preserving WASD without turning a normal left move into a skill press. Brake and Boost are generic timed multipliers from `CONFIG.skills`; core only uses `game.context.speedMultiplier`.
+The paused Konami sequence uses that same action stream: directions, `BUTTON_B` and `BUTTON_A`. Keyboard `a` stays WASD-left while running, but becomes `BUTTON_A` only while paused so the literal desktop B/A ending remains available without making a normal left move into a skill press. Brake and Boost are generic timed multipliers from `CONFIG.skills`; core only uses `game.context.speedMultiplier`.
 
 `LayoutSystem` owns CSS-pixel viewport dimensions plus capped `dpr`; its canvas backing buffer is `viewport × dpr`. `RenderSystem` renders in CSS pixels and aligns one-pixel grid/boundary strokes to device pixels. World/camera/collision coordinates remain independent of display resolution.
 
@@ -223,3 +223,11 @@ The paused Konami sequence uses that same action stream: directions, `SKILL_B` a
 The game viewport owns the only swipe listener and uses Pointer Events. Its `touch-action:none` prevents a board swipe from scrolling; no document or body touch listener calls `preventDefault`. Controls use native button clicks with `touch-action:manipulation`, are in ordinary document flow, and reserve `env(safe-area-inset-bottom)` space so Safari browser chrome cannot overlap the final controls.
 
 Layer tokens are `--z-world < --z-hud < --z-controls < --z-overlay < --z-modal`. Viewport overlays are visually full-size but use `pointer-events:none`; only their actual card content restores pointer events. Thus the ready overlay cannot swallow difficulty, skin, redeem, HUD or controller touches outside the board.
+
+## Mobile controller final layout
+
+The mobile controller emits neutral control tokens only: `MOVE_UP`, `MOVE_DOWN`, `MOVE_LEFT`, `MOVE_RIGHT`, `BUTTON_B`, `BUTTON_A` and `BUTTON_FUNC`. `UISystem` is the context router. D-Pad tokens move only while running and enter the paused secret matcher otherwise. `BUTTON_B` and `BUTTON_A` are future skill slots: they invoke Brake and Boost only while running; when paused they are sequence input only and never start a cooldown.
+
+`BUTTON_FUNC` is permanently a system action, not a third skill and not a secret-sequence member: READY → Start, RUNNING → Pause, PAUSED → Resume, GAME_OVER → Restart. Modal state disables it. On desktop the key equivalents remain Space and R; keyboard `a` remains left while running and maps to Button A only for the paused sequence.
+
+The portrait layout is D-Pad on the left and a right-hand skill cluster: a small FUNC control centered above the separate Brake and Boost circles. All controller buttons maintain a 44px minimum hit region and stay in normal document flow with safe-area padding.

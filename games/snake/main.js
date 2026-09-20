@@ -56,7 +56,7 @@ const redeemService = new RedeemService([
 ]);
 const ui = new UISystem({ game, skinSystem, profileService, redeemService, saveService, eventBus, foodRegistry });
 ui.bind();
-const input = new Input({ target:document, wrap:document.getElementById('board-wrap'), directions:CONFIG.directions, swipeMin:CONFIG.input.swipeMin, onAction:action=>ui.action(action), onEscape:()=>ui.escape() });
+const input = new Input({ target:document, wrap:document.getElementById('board-wrap'), directions:CONFIG.directions, swipeMin:CONFIG.input.swipeMin, onAction:action=>ui.action(action), onEscape:()=>ui.escape(), isPaused:()=>game.state==='PAUSED' });
 input.bind();
 if (CONFIG.difficulty[saveService.save.settings.difficulty]) game.context.difficulty = saveService.save.settings.difficulty;
 game.reset();
