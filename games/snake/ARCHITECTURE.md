@@ -209,3 +209,11 @@ When adding a skin with standard image resources, set `renderAssets:true`, regis
 Overlay priority is `MODAL > GAME_OVER > PAUSED > READY > world`. A modal changes the game state to `MODAL`, so Start and Pause controls cannot respond behind it. The HUD is outside the Canvas and never follows the camera.
 
 For visual debugging only, set `CONFIG.debug.drawCollisionCells` with `CONFIG.debug.enabled`; it outlines the true one-cell collision bounds without exposing the setting to normal players.
+
+## Input, skills and device pixels
+
+`Input` yields to editable targets (`input`, `textarea`, `select` and editable content), so text entry can never steer, pause, restart or invoke a skill. It translates keyboard and swipe events into neutral UI actions.
+
+The paused Konami sequence uses that same action stream: directions, `SKILL_B` and `SKILL_A`. Lowercase `a` stays WASD-left; uppercase `A` (Shift+A) invokes Boost, preserving WASD without turning a normal left move into a skill press. Brake and Boost are generic timed multipliers from `CONFIG.skills`; core only uses `game.context.speedMultiplier`.
+
+`LayoutSystem` owns CSS-pixel viewport dimensions plus capped `dpr`; its canvas backing buffer is `viewport × dpr`. `RenderSystem` renders in CSS pixels and aligns one-pixel grid/boundary strokes to device pixels. World/camera/collision coordinates remain independent of display resolution.

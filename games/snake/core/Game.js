@@ -5,13 +5,13 @@ import { Score } from './Score.js';
 export class Game {
   constructor({ config, eventBus, mapSystem, cameraSystem, buffSystem, mechanicSystem, skinSystem, renderSystem }) {
     this.config=config;this.eventBus=eventBus;this.mapSystem=mapSystem;this.cameraSystem=cameraSystem;this.buffSystem=buffSystem;this.mechanicSystem=mechanicSystem;this.skinSystem=skinSystem;this.renderSystem=renderSystem;
-    this.snake=new Snake(config.initialSnake,config.directions.right);this.score=new Score();this.world={entities:new Map()};this.state=GameState.READY;this.context={worldId:'normal',mapId:'normal',runMode:RunMode.NORMAL,activeModal:null,difficulty:'normal',nextFoodId:null,boundaryBroken:false,activeMapEnteredAt:0,mapStatusKnown:false};this.elapsed=0;this.clockAt=null;this.timer=null;this.transitionTimers=[];
+    this.snake=new Snake(config.initialSnake,config.directions.right);this.score=new Score();this.world={entities:new Map()};this.state=GameState.READY;this.context={worldId:'normal',mapId:'normal',runMode:RunMode.NORMAL,activeModal:null,difficulty:'normal',nextFoodId:null,boundaryBroken:false,activeMapEnteredAt:0,mapStatusKnown:false,speedMultiplier:1};this.elapsed=0;this.clockAt=null;this.timer=null;this.transitionTimers=[];
   }
   get isPlaying(){return isPlaying(this.state);}
   get food(){return this.world.entities.get('food');}
   setState(state){this.state=state;}
   setRunMode(mode){this.context.runMode=mode;this.eventBus.emit('mode:change',{mode});}
-  reset(){this.stopAll();this.freezeClock();this.elapsed=0;this.clockAt=null;this.score.reset();this.snake.reset(this.config.initialSnake,this.config.directions.right);this.buffSystem.reset();this.mapSystem.enter('normal');this.cameraSystem.reset();this.context={...this.context,worldId:'normal',mapId:'normal',runMode:RunMode.NORMAL,activeModal:null,nextFoodId:null,boundaryBroken:false,activeMapEnteredAt:0,mapStatusKnown:false};this.mechanicSystem.configure([...this.skinSystem.current.mechanics,...this.mapSystem.current.mechanics],{game:this});this.spawnFood();this.setState(GameState.READY);this.eventBus.emit('game:restart',{game:this});this.render();}
+  reset(){this.stopAll();this.freezeClock();this.elapsed=0;this.clockAt=null;this.score.reset();this.snake.reset(this.config.initialSnake,this.config.directions.right);this.buffSystem.reset();this.mapSystem.enter('normal');this.cameraSystem.reset();this.context={...this.context,worldId:'normal',mapId:'normal',runMode:RunMode.NORMAL,activeModal:null,nextFoodId:null,boundaryBroken:false,activeMapEnteredAt:0,mapStatusKnown:false,speedMultiplier:1};this.mechanicSystem.configure([...this.skinSystem.current.mechanics,...this.mapSystem.current.mechanics],{game:this});this.spawnFood();this.setState(GameState.READY);this.eventBus.emit('game:restart',{game:this});this.render();}
   start(){if(this.state===GameState.READY){this.resumeClock();this.setState(GameState.RUNNING);this.eventBus.emit('game:start',{game:this});this.schedule();}else if(this.state===GameState.PAUSED){this.resumeClock();this.setState(GameState.RUNNING);this.eventBus.emit('game:resume',{game:this});this.schedule();}}
   pause(){if(!this.isPlaying)return;this.stopTick();this.freezeClock();this.setState(GameState.PAUSED);this.eventBus.emit('game:pause',{game:this});}
   togglePause(){if(this.isPlaying)this.pause();else if(this.state===GameState.PAUSED)this.start();}
@@ -19,7 +19,7 @@ export class Game {
   closeModal(next=GameState.PAUSED){if(this.state!==GameState.MODAL)return;const id=this.context.activeModal;this.context.activeModal=null;this.setState(next);this.eventBus.emit('ui:modal-close',{id,game:this});}
   queueDirection(direction){if(![GameState.READY,GameState.RUNNING].includes(this.state))return false;const changed=this.snake.queueDirection(direction);if(changed&&this.state===GameState.READY)this.start();return changed;}
   chooseDifficulty(id){if(![GameState.READY,GameState.GAME_OVER].includes(this.state)||!this.config.difficulty[id])return false;this.context.difficulty=id;return true;}
-  schedule(){this.stopTick();this.timer=window.setTimeout(()=>this.tick(),this.config.difficulty[this.context.difficulty].speed);}
+  schedule(){this.stopTick();this.timer=window.setTimeout(()=>this.tick(),this.config.difficulty[this.context.difficulty].speed/this.context.speedMultiplier);}
   stopTick(){window.clearTimeout(this.timer);this.timer=null;}
   stopAll(){this.stopTick();this.transitionTimers.forEach(timer=>window.clearTimeout(timer));this.transitionTimers=[];}
   resumeClock(){if(this.clockAt===null)this.clockAt=performance.now();}
