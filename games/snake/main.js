@@ -61,4 +61,5 @@ input.bind();
 if (CONFIG.difficulty[saveService.save.settings.difficulty]) game.context.difficulty = saveService.save.settings.difficulty;
 game.reset();
 
+document.body.dataset.debugUiHitbox=String(Boolean(CONFIG.debug.uiHitboxes));
 if (CONFIG.debug.enabled) window.snakeDebug = { game, eventBus, gridSystem, layoutSystem, registries:{ skinRegistry, buffRegistry, foodRegistry, mapRegistry, mechanicRegistry, eventRegistry, uiThemeRegistry }, saveService };

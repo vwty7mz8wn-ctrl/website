@@ -9,5 +9,5 @@ export const CONFIG = Object.freeze({
   render: { defaultProfile:{ headScale:1, bodyScale:.90, tailScale:.90, cornerScale:.90, foodScale:.82, overlapRatio:.04, headOffsetX:0, headOffsetY:0, bodyOffsetX:0, bodyOffsetY:0, tailOffsetX:0, tailOffsetY:0, cornerOffsetX:0, cornerOffsetY:0, smoothing:true } },
   outside: { requiredScore:50, requiredLength:20, weakWallStart:8, weakWallEnd:11, breakMinCost:8, breakCostRatio:.30, minSafeLength:3, transitionDelay:125, trimInterval:42, statusDelay:7000 },
   creatorRedeemCode: 'REPLACE_ME',
-  debug: { enabled:false, drawCollisionCells:false }
+  debug: { enabled:false, drawCollisionCells:false, uiHitboxes:false }
 });

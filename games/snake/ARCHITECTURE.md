@@ -217,3 +217,9 @@ For visual debugging only, set `CONFIG.debug.drawCollisionCells` with `CONFIG.de
 The paused Konami sequence uses that same action stream: directions, `SKILL_B` and `SKILL_A`. Lowercase `a` stays WASD-left; uppercase `A` (Shift+A) invokes Boost, preserving WASD without turning a normal left move into a skill press. Brake and Boost are generic timed multipliers from `CONFIG.skills`; core only uses `game.context.speedMultiplier`.
 
 `LayoutSystem` owns CSS-pixel viewport dimensions plus capped `dpr`; its canvas backing buffer is `viewport × dpr`. `RenderSystem` renders in CSS pixels and aligns one-pixel grid/boundary strokes to device pixels. World/camera/collision coordinates remain independent of display resolution.
+
+## Mobile interaction boundaries
+
+The game viewport owns the only swipe listener and uses Pointer Events. Its `touch-action:none` prevents a board swipe from scrolling; no document or body touch listener calls `preventDefault`. Controls use native button clicks with `touch-action:manipulation`, are in ordinary document flow, and reserve `env(safe-area-inset-bottom)` space so Safari browser chrome cannot overlap the final controls.
+
+Layer tokens are `--z-world < --z-hud < --z-controls < --z-overlay < --z-modal`. Viewport overlays are visually full-size but use `pointer-events:none`; only their actual card content restores pointer events. Thus the ready overlay cannot swallow difficulty, skin, redeem, HUD or controller touches outside the board.
