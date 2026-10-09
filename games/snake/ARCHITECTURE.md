@@ -204,7 +204,7 @@ When adding a skin with standard image resources, set `renderAssets:true`, regis
 
 ## StartScreen and overlay priority
 
-`UISystem` owns the viewport overlays. In `READY`, it displays `StartScreen` with the active skin name/preview, difficulty choices and a real start button. Click, Enter and Space start the game; touch direction buttons and swipes intentionally do nothing until the game is running. Difficulty changes remain limited to `READY` and `GAME_OVER`.
+`UISystem` owns the viewport overlays. In `READY`, `StartScreen` contains the only visible start button and a desktop keyboard hint. Difficulty appears once in the compact setup bar, while skin choices and redemption live in the native “外观” details panel. Click, Enter and Space start the game; touch direction buttons and swipes intentionally do nothing until the game is running. Difficulty changes remain limited to `READY` and `GAME_OVER`.
 
 Overlay priority is `MODAL > GAME_OVER > PAUSED > READY > world`. A modal changes the game state to `MODAL`, so Start and Pause controls cannot respond behind it. The HUD is outside the Canvas and never follows the camera.
 
@@ -228,7 +228,7 @@ Layer tokens are `--z-world < --z-hud < --z-controls < --z-overlay < --z-modal`.
 
 The mobile controller emits neutral control tokens only: `MOVE_UP`, `MOVE_DOWN`, `MOVE_LEFT`, `MOVE_RIGHT`, `BUTTON_B`, `BUTTON_A` and `BUTTON_FUNC`. `UISystem` is the context router. D-Pad tokens move only while running and enter the paused secret matcher otherwise. `BUTTON_B` and `BUTTON_A` are future skill slots: they invoke Brake and Boost only while running; when paused they are sequence input only and never start a cooldown.
 
-`BUTTON_FUNC` is permanently a system action, not a third skill and not a secret-sequence member: READY → Start, RUNNING → Pause, PAUSED → Resume, GAME_OVER → Restart. Modal state disables it. On desktop the key equivalents remain Space and R; keyboard `a` remains left while running and maps to Button A only for the paused sequence.
+`BUTTON_FUNC` is permanently a system action, not a third skill and not a secret-sequence member. The mobile controller is visible only in RUNNING / PAUSED, with FUNC acting as Pause / Resume. Desktop uses the HUD pause / continue button; CSS hides that duplicate button on mobile. Modal state disables the controller. On desktop the key equivalents remain Space and R; keyboard `a` remains left while running and maps to Button A only for the paused sequence.
 
 The portrait layout is D-Pad on the left and a right-hand skill cluster: a small FUNC control centered above the separate Brake and Boost circles. All controller buttons maintain a 44px minimum hit region and stay in normal document flow with safe-area padding.
 
@@ -237,3 +237,9 @@ The portrait layout is D-Pad on the left and a right-hand skill cluster: a small
 The viewport swipe adapter must ignore pointer events originating from buttons, links and editable targets before calling `setPointerCapture`. Otherwise pointer-up and native click are retargeted to the viewport, and the Start button never receives a click. Verify changes using actual browser mouse clicks and touchscreen taps rather than `element.click()` alone.
 
 `LayoutSystem` changes the Canvas backing dimensions only when their values differ. Assigning an unchanged `canvas.width` or `canvas.height` still clears the drawing buffer; repeated resize notifications must leave a READY or PAUSED board intact. `refinements.css` owns the responsive game UI, while grid collision and gameplay remain independent of visual layout.
+
+## State-specific UI actions
+
+READY has one central Start action, RUNNING has Pause, PAUSED has Continue plus a secondary restart inside its small overlay, and GAME_OVER has one “再来一局” action inside the statistics panel. Native `hidden` controls are excluded from both interaction and layout. State changes also remain announced through a visually hidden live status; only CHEAT, discovered OUTSIDE and active buffs require visible badges.
+
+`UISystem.restart()` composes the existing `game.reset()` and `game.start()` APIs: a paused restart, R or replay begins a clean running session immediately with the selected difficulty. It clears the secret buffer, active skill timer and cooldowns; core game / collision logic is unchanged. Resume clears partial secret input. Game actions release button focus so subsequent movement keys are not intercepted, while native details summaries and editable fields retain their own keyboard behavior. Escape closes verification even when its input is focused.
