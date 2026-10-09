@@ -4,7 +4,7 @@ export class AssetLoader {
   constructor({maxUnused=32,logger=console}={}) {this.resources=new Map();this.maxUnused=maxUnused;this.logger=logger;this.requests=0;}
   load(path,type='image',owner=null) {
     if(!path)return Promise.resolve(null);
-    const url=new URL(path,document.baseURI);
+    let url;try{url=new URL(path,document.baseURI);}catch(error){this.logger.warn('[Snake Assets] Invalid resource URL',error);return Promise.resolve(null);}
     if(url.origin!==location.origin&&url.protocol!=='data:'){this.logger.warn('[Snake Assets] External resource refused');return Promise.resolve(null);}
     const key=`${type}:${url.href}`;
     let entry=this.resources.get(key);

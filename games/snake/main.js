@@ -15,6 +15,8 @@ import { UISystem } from './systems/UISystem.js';
 import { ThemeContextResolver } from './systems/ThemeContextResolver.js';
 import { ComponentHost } from './ui/ComponentHost.js';
 import { defaultComponents } from './ui/components/default.js';
+import { creatorComponents } from './ui/components/creator.js';
+import { subscriberComponents } from './ui/components/subscriber.js';
 import { appearances } from './content/appearances.js';
 import { themePacks } from './content/themePacks.js';
 import { layoutVariants } from './content/layoutVariants.js';
@@ -50,7 +52,7 @@ const componentRegistry=new Registry('UIComponentRegistry');
 const controllerRegistry=new Registry('ControllerStyleRegistry');
 const presentationRegistry=new Registry('SkillPresentationRegistry');
 const skillSetRegistry=new Registry('SkillSetRegistry');
-registerAll(appearanceRegistry,appearances);registerAll(themePackRegistry,themePacks);registerAll(layoutVariantRegistry,layoutVariants);registerAll(componentRegistry,defaultComponents);registerAll(controllerRegistry,controllerStyles);registerAll(presentationRegistry,skillPresentations);registerAll(skillSetRegistry,skillSets);
+registerAll(appearanceRegistry,appearances);registerAll(themePackRegistry,themePacks);registerAll(layoutVariantRegistry,layoutVariants);registerAll(componentRegistry,[...defaultComponents,...creatorComponents,...subscriberComponents]);registerAll(controllerRegistry,controllerStyles);registerAll(presentationRegistry,skillPresentations);registerAll(skillSetRegistry,skillSets);
 registerAll(skinRegistry, skins);registerAll(buffRegistry, buffs);registerAll(foodRegistry, foods);registerAll(mapRegistry, maps);registerAll(eventRegistry, events);registerAll(uiThemeRegistry, uiThemes);mechanicRegistry.register('boundary-break', createBoundaryBreakMechanic(CONFIG));
 
 const saveService = new SaveService(new LocalStorageAdapter());
