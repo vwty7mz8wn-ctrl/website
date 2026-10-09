@@ -12,6 +12,15 @@ import { LayoutSystem } from './systems/LayoutSystem.js';
 import { RenderSystem } from './systems/RenderSystem.js';
 import { AssetLoader } from './systems/AssetLoader.js';
 import { UISystem } from './systems/UISystem.js';
+import { ThemeContextResolver } from './systems/ThemeContextResolver.js';
+import { ComponentHost } from './ui/ComponentHost.js';
+import { defaultComponents } from './ui/components/default.js';
+import { appearances } from './content/appearances.js';
+import { themePacks } from './content/themePacks.js';
+import { layoutVariants } from './content/layoutVariants.js';
+import { controllerStyles } from './content/controllerStyles.js';
+import { skillPresentations } from './content/skillPresentations.js';
+import { skillSets } from './content/skillSets.js';
 import { LocalStorageAdapter } from './storage/LocalStorageAdapter.js';
 import { SaveService } from './services/SaveService.js';
 import { ProfileService } from './services/ProfileService.js';
@@ -34,12 +43,20 @@ const mapRegistry = new Registry('MapRegistry');
 const mechanicRegistry = new Registry('MechanicRegistry');
 const eventRegistry = new Registry('EventRegistry');
 const uiThemeRegistry = new Registry('UIThemeRegistry');
+const appearanceRegistry=new Registry('AppearanceRegistry');
+const themePackRegistry=new Registry('ThemePackRegistry');
+const layoutVariantRegistry=new Registry('LayoutVariantRegistry');
+const componentRegistry=new Registry('UIComponentRegistry');
+const controllerRegistry=new Registry('ControllerStyleRegistry');
+const presentationRegistry=new Registry('SkillPresentationRegistry');
+const skillSetRegistry=new Registry('SkillSetRegistry');
+registerAll(appearanceRegistry,appearances);registerAll(themePackRegistry,themePacks);registerAll(layoutVariantRegistry,layoutVariants);registerAll(componentRegistry,defaultComponents);registerAll(controllerRegistry,controllerStyles);registerAll(presentationRegistry,skillPresentations);registerAll(skillSetRegistry,skillSets);
 registerAll(skinRegistry, skins);registerAll(buffRegistry, buffs);registerAll(foodRegistry, foods);registerAll(mapRegistry, maps);registerAll(eventRegistry, events);registerAll(uiThemeRegistry, uiThemes);mechanicRegistry.register('boundary-break', createBoundaryBreakMechanic(CONFIG));
 
 const saveService = new SaveService(new LocalStorageAdapter());
 saveService.load();
 const profileService = new ProfileService(saveService);
-const skinSystem = new SkinSystem(skinRegistry, profileService, eventBus);
+const skinSystem = new SkinSystem(skinRegistry, profileService, eventBus,{appearances:appearanceRegistry,packs:themePackRegistry});
 skinSystem.load();
 const mapSystem = new MapSystem(mapRegistry, foodRegistry, CONFIG, eventBus);
 const buffSystem = new BuffSystem(buffRegistry, eventBus);
@@ -47,14 +64,18 @@ const cameraSystem = new CameraSystem(eventBus);
 const gridSystem = new GridSystem(mapSystem.current.grid);
 const layoutSystem = new LayoutSystem({ viewport:document.getElementById('board-wrap'), canvas:document.getElementById('board'), gridSystem, config:CONFIG, eventBus });
 const mechanicSystem = new MechanicSystem(mechanicRegistry);
-const renderSystem = new RenderSystem(document.getElementById('board'), CONFIG, new AssetLoader(), gridSystem, layoutSystem);
+const assetLoader=new AssetLoader();
+const renderSystem = new RenderSystem(document.getElementById('board'), CONFIG, assetLoader, gridSystem, layoutSystem);
 const game = new Game({ config:CONFIG, eventBus, mapSystem, cameraSystem, buffSystem, mechanicSystem, skinSystem, renderSystem });
+skinSystem.setStateProvider(()=>game.state);
 layoutSystem.setOnChange(()=>game.render());
 const redeemService = new RedeemService([
   { code:CONFIG.creatorRedeemCode, type:'skin', id:'creator', message:'CREATOR SKIN UNLOCKED' },
   ...skins.filter(skin=>skin.unlock?.type==='redeem'&&skin.unlock.code).map(skin=>({ code:skin.unlock.code, type:'skin', id:skin.id, message:skin.unlock.message||`${skin.displayName.toUpperCase()} UNLOCKED` }))
 ]);
-const ui = new UISystem({ game, skinSystem, profileService, redeemService, saveService, eventBus, foodRegistry });
+const resolver=new ThemeContextResolver({packs:themePackRegistry,themes:uiThemeRegistry,layouts:layoutVariantRegistry,controllers:controllerRegistry,presentations:presentationRegistry,skillSets:skillSetRegistry});
+const host=new ComponentHost({root:document.getElementById('snake-ui-root'),registry:componentRegistry,assets:assetLoader});
+const ui = new UISystem({ game, skinSystem, profileService, redeemService, saveService, eventBus, foodRegistry,resolver,host,skillSets:skillSetRegistry,assetLoader });
 ui.bind();
 const input = new Input({ target:document, wrap:document.getElementById('board-wrap'), directions:CONFIG.directions, swipeMin:CONFIG.input.swipeMin, onAction:action=>ui.action(action), onEscape:()=>ui.escape(), isPaused:()=>game.state==='PAUSED' });
 input.bind();
@@ -62,4 +83,4 @@ if (CONFIG.difficulty[saveService.save.settings.difficulty]) game.context.diffic
 game.reset();
 
 document.body.dataset.debugUiHitbox=String(Boolean(CONFIG.debug.uiHitboxes));
-if (CONFIG.debug.enabled) window.snakeDebug = { game, eventBus, gridSystem, layoutSystem, registries:{ skinRegistry, buffRegistry, foodRegistry, mapRegistry, mechanicRegistry, eventRegistry, uiThemeRegistry }, saveService };
+if (CONFIG.debug.enabled) window.snakeDebug = { game,ui,resolver,host,assetLoader,skinSystem,eventBus,gridSystem,layoutSystem,registries:{skinRegistry,buffRegistry,foodRegistry,mapRegistry,mechanicRegistry,eventRegistry,uiThemeRegistry,appearanceRegistry,themePackRegistry,layoutVariantRegistry,componentRegistry,controllerRegistry,presentationRegistry,skillSetRegistry},saveService };

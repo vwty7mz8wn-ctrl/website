@@ -1,0 +1,18 @@
+/* All pack styling and tokens are scoped to the game document. */
+body[data-snake-game] { --paper:var(--ui-bg,#101112); --panel:var(--ui-surface,#171919); --ink:var(--ui-text,#e8e9e7); --muted:var(--ui-muted,#a2a5a4); --line:var(--ui-border,#383a3a); --sans:var(--ui-font-body,Arial,sans-serif); --mono:var(--ui-font-display,Consolas,monospace); }
+[data-snake-game] .ui-slot { display:contents; }
+[data-snake-game] .theme-region { min-width:0; }
+[data-snake-game] [data-region="main"] > .ui-slot > .intro { margin-bottom:20px; }
+[data-snake-game] .skin-controls { max-height:min(65dvh,480px); overflow:auto; display:block; }
+[data-snake-game] .skin-catalog { display:grid; gap:12px; }
+[data-snake-game] .skin-card { display:grid; grid-template-columns:52px minmax(0,1fr) auto; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+[data-snake-game] .skin-art { display:grid; place-items:center; width:52px; height:52px; color:var(--ui-accent); }
+[data-snake-game] .skin-art img { width:100%;height:100%;object-fit:contain; }
+[data-snake-game] .skin-description h3 { margin:0;font-size:.85rem;font-weight:500; }
+[data-snake-game] .skin-description p,[data-snake-game] .skin-description small { margin:6px 0 0;color:var(--muted);font-size:.7rem;line-height:1.7; }
+[data-snake-game] .selector-notice { min-height:1em;font-size:.7rem;color:var(--muted); }
+[data-snake-game] .theme-region > .ui-slot > #status-slot:has(#special-status[hidden]) { margin:0; }
+[data-snake-game] button { transition-duration:var(--ui-motion-duration); }
+[data-snake-game] .dialog { border-radius:var(--ui-radius); }
+@media(max-width:760px){[data-snake-game] .skin-card { grid-template-columns:44px minmax(0,1fr);gap:8px; }[data-snake-game] .skin-card .skin-button { grid-column:2;justify-self:start; }[data-snake-game] .skin-art {width:44px;height:44px;} }
+@media(prefers-reduced-motion:reduce){[data-snake-game] button {transition:none;} }
