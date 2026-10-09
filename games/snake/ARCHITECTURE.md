@@ -231,3 +231,9 @@ The mobile controller emits neutral control tokens only: `MOVE_UP`, `MOVE_DOWN`,
 `BUTTON_FUNC` is permanently a system action, not a third skill and not a secret-sequence member: READY → Start, RUNNING → Pause, PAUSED → Resume, GAME_OVER → Restart. Modal state disables it. On desktop the key equivalents remain Space and R; keyboard `a` remains left while running and maps to Button A only for the paused sequence.
 
 The portrait layout is D-Pad on the left and a right-hand skill cluster: a small FUNC control centered above the separate Brake and Boost circles. All controller buttons maintain a 44px minimum hit region and stay in normal document flow with safe-area padding.
+
+## Native click and canvas resize safeguards
+
+The viewport swipe adapter must ignore pointer events originating from buttons, links and editable targets before calling `setPointerCapture`. Otherwise pointer-up and native click are retargeted to the viewport, and the Start button never receives a click. Verify changes using actual browser mouse clicks and touchscreen taps rather than `element.click()` alone.
+
+`LayoutSystem` changes the Canvas backing dimensions only when their values differ. Assigning an unchanged `canvas.width` or `canvas.height` still clears the drawing buffer; repeated resize notifications must leave a READY or PAUSED board intact. `refinements.css` owns the responsive game UI, while grid collision and gameplay remain independent of visual layout.

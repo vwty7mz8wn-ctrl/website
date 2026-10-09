@@ -8,14 +8,17 @@ export class LayoutSystem {
   setOnChange(callback) { this.onChange=callback; }
   update() {
     const { minCellSize,maxCellSize,viewportPadding }=this.config.layout;
-    const availableWidth=Math.max(0,this.viewportElement.parentElement.clientWidth-viewportPadding*2);
+    const availableWidth=Math.max(0,this.viewportElement.parentElement.clientWidth-viewportPadding*2-2);
     const availableHeight=Math.max(0,Math.min(availableWidth*(this.gridSystem.rows/this.gridSystem.cols),window.innerHeight*.72)-viewportPadding*2);
     const raw=Math.min(availableWidth/this.gridSystem.cols,availableHeight/this.gridSystem.rows);
     const cellSize=Math.round(clamp(raw,minCellSize,maxCellSize)*100)/100;
     const width=Math.round(cellSize*this.gridSystem.cols),height=Math.round(cellSize*this.gridSystem.rows),dpr=Math.min(window.devicePixelRatio||1,3),bufferWidth=Math.round(width*dpr),bufferHeight=Math.round(height*dpr);
     const changed=width!==this.viewport.width||height!==this.viewport.height||dpr!==this.viewport.dpr;
     this.gridSystem.setCellSize(cellSize);this.viewport={ width,height,cellSize,cols:this.gridSystem.cols,rows:this.gridSystem.rows,dpr };
-    this.canvas.width=bufferWidth;this.canvas.height=bufferHeight;this.canvas.style.width=`${width}px`;this.canvas.style.height=`${height}px`;this.ctx.setTransform(dpr,0,0,dpr,0,0);this.viewportElement.style.width=`${width}px`;this.viewportElement.style.height=`${height}px`;
+    // Assigning a Canvas dimension clears it, even if the value is unchanged.
+    if(this.canvas.width!==bufferWidth||this.canvas.height!==bufferHeight){this.canvas.width=bufferWidth;this.canvas.height=bufferHeight;}
+    this.ctx.setTransform(dpr,0,0,dpr,0,0);
+    this.canvas.style.width=`${width}px`;this.canvas.style.height=`${height}px`;this.viewportElement.style.width=`${width}px`;this.viewportElement.style.height=`${height}px`;
     if(changed){this.eventBus.emit('layout:change',{viewport:this.viewport});this.onChange?.(this.viewport);}
     return this.viewport;
   }
