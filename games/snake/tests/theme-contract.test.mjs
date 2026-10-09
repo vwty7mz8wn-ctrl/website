@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Registry} from '../systems/Registry.js';
+import {ThemeContextResolver,UI_SLOTS} from '../systems/ThemeContextResolver.js';
+import {freezeSnapshot} from '../systems/Immutable.js';
+import {themePacks} from '../content/themePacks.js';
+import {layoutVariants} from '../content/layoutVariants.js';
+import {controllerStyles} from '../content/controllerStyles.js';
+import {skillPresentations} from '../content/skillPresentations.js';
+import {skillSets} from '../content/skillSets.js';
+const registry=(name,items)=>{const result=new Registry(name);items.forEach(item=>result.register(item.id,item));return result;};
+const resolver=()=>new ThemeContextResolver({packs:registry('packs',themePacks),layouts:registry('layouts',layoutVariants),themes:registry('themes',[{id:'default',tokens:{'--ui-bg':'black','--ui-text':'white'}},{id:'creator',tokens:{'--ui-border':'gray'}},{id:'outside',tokens:{'--ui-bg':'charcoal'}}]),controllers:registry('controllers',controllerStyles),presentations:registry('presentations',skillPresentations),skillSets:registry('skills',skillSets),logger:{warn(){}}});
+test('immutable nested snapshots cannot mutate engine data',()=>{const source={a:{score:2}};const copy=freezeSnapshot(source);assert.throws(()=>copy.a.score=9);assert.equal(source.a.score,2);});
+test('all required slots have a default implementation',()=>{assert.ok(UI_SLOTS.every(slot=>layoutVariants[0].components[slot]));});
+test('map and event overlays preserve skin layout, merge tokens and restore',()=>{const r=resolver(),skin={id:'creator',themePackId:'creator'},map={id:'outside',uiThemeId:'outside'};let ctx=r.resolve({skin,map});assert.equal(ctx.layoutVariantId,'creator');assert.equal(ctx.components.HUD,'creator/HUD');assert.equal(ctx.tokens['--ui-border'],'gray');assert.equal(ctx.tokens['--ui-bg'],'charcoal');r.setEvent('test',{tokens:{'--ui-bg':'event'},components:{Status:'event/Status'}});ctx=r.resolve({skin,map});assert.equal(ctx.tokens['--ui-bg'],'event');assert.equal(ctx.components.HUD,'creator/HUD');r.clearEvent('test');assert.equal(r.resolve({skin,map}).tokens['--ui-bg'],'charcoal');assert.equal(r.resolve({skin,map:{id:'normal',uiThemeId:'default'}}).tokens['--ui-bg'],'black');});
+test('unknown pack/layout/theme and mobile-incompatible layout fall back',()=>{const r=resolver();let ctx=r.resolve({skin:{id:'gone',themePackId:'gone'},map:{id:'normal'}});assert.equal(ctx.layoutVariantId,'default');r.layouts.register('desktop',{id:'desktop',supportsMobile:false});r.packs.register('desktop',{layoutVariantId:'desktop',uiThemeId:'missing'});ctx=r.resolve({skin:{id:'desktop',themePackId:'desktop'},map:{id:'normal'},mobile:true});assert.equal(ctx.layoutVariantId,'default');assert.equal(ctx.tokens['--ui-text'],'white');});
+test('theme inheritance cycles terminate',()=>{const r=resolver();r.themes.register('a',{extends:'b'});r.themes.register('b',{extends:'a'});r.packs.register('cycle',{uiThemeId:'a'});assert.equal(r.resolve({skin:{id:'x',themePackId:'cycle'},map:{id:'normal'}}).tokens['--ui-text'],'white');});
