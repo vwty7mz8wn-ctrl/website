@@ -106,7 +106,7 @@ Mechanics implement only hooks they need: `onAttach`, `onGameStart`, `onRestart`
 - `UISystem` translates DOM events to public Game APIs and renders state into the page.
 - `AssetLoader` caches image requests and returns `null` for missing resources so renderers can fall back to Default safely.
 
-Theme priority is event theme, then map theme, then skin theme, then Default. The current UI applies map theme over skin theme through `body[data-theme]`. `styles.css` owns token changes only and leaves layout stable.
+Theme priority is Event > Map > Skin > Default. `ThemeContextResolver` merges partial layers; `ComponentHost` applies scoped tokens and registered components. No `body[data-theme]` skin branches remain. Maps/events do not replace the player's layout, Appearance or SkillSet.
 
 ## Save v1 and migration
 
@@ -158,6 +158,8 @@ Add one definition in `content/mechanics.js`, register it in `main.js`, and atta
 ## Constraints
 
 Keep the game dependency-free, static and black, white and gray. Do not add framework state libraries, a full ECS, secret credentials or speculative empty content folders. The Creator redeem constant remains a local easter egg, not authentication.
+
+Subscriber's existing art and restrained warm-red UI accent are the intentional exception to the monochrome base; do not generate replacement art or alter its redemption.
 
 ## Grid, viewport and rendering
 
@@ -243,3 +245,153 @@ The viewport swipe adapter must ignore pointer events originating from buttons, 
 READY has one central Start action, RUNNING has Pause, PAUSED has Continue plus a secondary restart inside its small overlay, and GAME_OVER has one “再来一局” action inside the statistics panel. Native `hidden` controls are excluded from both interaction and layout. State changes also remain announced through a visually hidden live status; only CHEAT, discovered OUTSIDE and active buffs require visible badges.
 
 `UISystem.restart()` composes the existing `game.reset()` and `game.start()` APIs: a paused restart, R or replay begins a clean running session immediately with the selected difficulty. It clears the secret buffer, active skill timer and cooldowns; core game / collision logic is unchanged. Resume clears partial secret input. Game actions release button focus so subsequent movement keys are not intercepted, while native details summaries and editable fields retain their own keyboard behavior. Escape closes verification even when its input is focused.
+
+## Theme Pack V1: composition, not another game
+
+The registries are all instances of the existing `Registry`; no second SkinSystem, UISystem, renderer, input router or loop exists. `main.js` registers content and wires the shared loader, resolver and UI host to the existing systems.
+
+```text
+SkinRegistry -> SkinSystem -> immutable run Appearance / Mechanic / SkillSet
+                               |
+ThemePackRegistry -> UIThemeRegistry + LayoutVariantRegistry
+                               |
+                   ThemeContextResolver <- Map + visual Events
+                               |
+UISystem -> readonly ViewModel / Actions -> ComponentHost -> DOM slots
+RenderSystem -> Appearance / RenderProfile -> same Canvas / logical cells
+```
+
+### Theme Pack schema
+
+`content/themePacks.js` owns associations. Only `id` is required by registration; missing fields inherit the Default pack. An Appearance-only Skin does not need a pack.
+
+```js
+{
+  id: 'sample', displayName: 'Sample', description: 'Optional', version: 1,
+  appearanceId: 'default', uiThemeId: 'default', layoutVariantId: 'default',
+  controllerStyleId: 'default', skillPresentationId: 'default', skillSetId: 'default',
+  previewAsset: './assets/skins/sample/preview.png', // optional
+  assetBasePath: './assets/skins/sample/',          // authoring metadata
+  assets: [{path:'./assets/skins/sample/ui/panel.svg',type:'image'}],
+  selectorCardId: 'default/SkinCard',               // optional renderCard factory
+  capabilities: [], mechanicIds: [],               // omit to inherit Skin rules
+  unlock: {type:'redeem'}, secretTags: []           // declarations only
+}
+```
+
+Paths in manifests are page-relative or same-origin absolute paths; `assetBasePath` does not implicitly rewrite them. Never put redeem codes in UI themes/templates or the pack's public preview metadata. Ownership stays in ProfileService; redemption stays in the existing RedeemService/Skin declarations. Packs cannot unlock themselves.
+
+### Skin Appearance
+
+`content/appearances.js` separates visual data from the Skin's entitlement/rules. It accepts `assetPath`, `renderAssets`, `previewPath`, `renderProfile`, and optional `spriteAtlas:{path,frames}`. Frame names match the existing fifteen head/tail/body/corner/food names; each frame contains `x,y,width,height`. Loader returns `{image,frame}` and RenderSystem draws the source rectangle preserving its aspect ratio. Scale/offset/overlap/smoothing continue to be visual only: one segment is still one cell. The existing Subscriber 001 sprites and source image are unchanged.
+
+### UI Theme / tokens
+
+`content/uiThemes.js` defines optional `extends`, `tokens` and `components` overrides. Tokens use `--ui-bg`, `--ui-surface`, `--ui-text`, `--ui-muted`, `--ui-border`, `--ui-accent`, `--ui-radius`, `--ui-font-body`, `--ui-font-display`, `--ui-spacing`, `--ui-motion-duration`. Default supplies missing values. Use local system fonts; do not load external fonts. Shared legacy CSS variables alias these tokens only inside `body[data-snake-game]`; pack CSS selectors must begin with `[data-snake-game]`. `ComponentHost` removes only its owned inline tokens before applying the next context. Reduced-motion is respected; no gradients or new animations.
+
+### Layout Variant / structural regions
+
+`content/layoutVariants.js` supports `extends`, `supportsMobile`, `components` and `regions`. Each region is `{id,slots}`. The six top-level slots Header/HUD/Status/Setup/WorldViewport/Controller must appear exactly once; an invalid arrangement falls back to a single Default region. StartScreen/PauseOverlay/GameOver remain nested in the stable viewport; SkinSelector remains nested in Setup. Modals are root-level, outside grid flow. Regions change actual DOM containment, not just colors.
+
+- Default: single main column, compact top score, central viewport, bottom controls.
+- Creator: full-width heading/setup, desktop parameter sidebar plus world region; compact four-parameter strip on phones.
+- Subscriber 001: portrait/header/score region, separate world/setup/controller region, dedicated image-led Start and result templates.
+
+Incomplete or unsupported mobile layouts fall back to Default. Keep the shared engine Canvas alive through layout changes so the existing resize observer, pointer adapter and camera remain valid.
+
+### UI Component Contract
+
+`ui/ComponentHost.js` supports Header, HUD, Status, StartScreen, PauseOverlay, GameOver, SkinSelector, RedeemModal, CheatAuthModal, Controller, WorldViewport, plus Setup. A registered component implements:
+
+```js
+{
+  id: 'sample/HUD',
+  mount({baseElement, assets, signal, viewModel, actions, themeContext}) {
+    const element = document.createElement('section');
+    const label = document.createElement('strong');
+    element.append(label);
+    return {
+      element,
+      update({viewModel}) { label.textContent = String(viewModel.score); },
+      dispose() { /* release custom resources, if any */ }
+    };
+  }
+}
+```
+
+Optional `load()` resolves a component with the same contract. Default displays during loading; stale completion is ignored by mount-generation identity. On replacement `signal` aborts, `dispose()` runs and the scoped asset owner releases. Use `signal` for any local listeners. Prefer delegated `data-ui-action` buttons instead of installing new handlers. Missing registrations, mount/update exceptions or rejected loads log a diagnostic and use `default/<slot>`; failures are not retried every clock update. WorldViewport implementations must return the supplied engine surface rather than create another Canvas. Trusted component templates are source code, not user HTML.
+
+Skin cards may register `{id, renderCard({skin,selected,canSetup,assets,themeContext})}` returning an HTMLElement. Invalid card factories fall back individually. Selector receives only owned AND discovered registered skins; it never renders unknown/locked placeholders, counts or secret catalogs.
+
+### Read-only ViewModel and Actions
+
+`ui/ViewModel.js` constructs a structured-cloned, deeply frozen public snapshot. It contains `score`, `bestScore`, `length`, `elapsedTime` (milliseconds, second-quantized), `difficulty`, `gameState`, `runMode`, `currentSkin`, `currentMap`, `activeBuffs`, `skillStates`, `discoveredContent`, and setup/control/modal/selector display flags. It contains no Game/Snake reference or redeem codes. UI values are display copies; they cannot mutate mechanics or save.
+
+The frozen Action API includes start/pause/resume/restart/openSkinSelector/equipSkin/openRedeem/submitRedeem/closeModal/move/activateSkill/confirm/cancel, plus chooseDifficulty/control. It delegates to the existing public APIs and central input/state router. Gameplay, skill timers, score and redemption are never implemented by components. Button convention: `data-ui-action="equipSkin" data-ui-arg="sample"`; forms use `data-ui-form="redeem|cheat"` and an input named `code`.
+
+UISystem listens to state/content events and polls clocks/cooldowns at 100ms. Identical serialized ViewModel/context skip all DOM work. Components keep their DOM nodes and update only changed text/properties. This is separate from the existing game tick; there is no additional animation loop.
+
+### Layered context and restoration
+
+`systems/ThemeContextResolver.js` starts from Default tokens/components, merges the selected Skin theme and Layout, then Map, then active Events in insertion order (last event wins). Theme/layout inheritance is cycle-guarded; missing IDs log once and use Default. Overlay data may override only tokens and component slots, not Appearance, Layout regions, equipped Skin, mechanics or SkillSet.
+
+Map example (existing Outside also supports its legacy `uiThemeId:'outside'`):
+
+```js
+{id:'map-id', /* existing map configuration */
+ themeOverlay:{uiThemeId:'outside',tokens:{'--ui-muted':'#999999'},
+               components:{Status:'sample/Status'}}}
+```
+
+Event example:
+
+```js
+eventBus.emit('theme:event:start', {
+  id:'event:temporary',
+  overlay:{tokens:{'--ui-bg':'#151515'},components:{HUD:'sample/HUD'}}
+});
+eventBus.emit('theme:event:end', {id:'event:temporary'});
+```
+
+Every update resolves fresh from layers, so event end restores the current map/skin context exactly; leaving a map restores the Skin theme. Restart clears transient events. `run:cheat` is only an event UI context, not a selectable Skin. Its existing paused sequence/mario conditions and mode/category isolation are untouched. Creator retains its own HUD, Appearance and controller during BREAK/Outside.
+
+### Safe switching and SkillSet snapshot
+
+Both UISystem and SkinSystem enforce equip only in READY/GAME_OVER. RUNNING/PAUSED/MODAL/TRANSITION reject changes, including direct service calls. `game:start` captures deeply frozen Skin/Mechanic/SkillSet definitions; SkillSet slots are keyed BUTTON_B/BUTTON_A and reference existing timed skill configs. Registry changes cannot change the active run's definitions. Reset clears snapshots. Equip in GAME_OVER preserves score/statistics instead of resetting the run. Pack ID is derived from the selected Skin, not written as a second user setting; Save v1 and all legacy migrations remain unchanged.
+
+### Shared resources and fallbacks
+
+The single AssetLoader is shared by UI and renderer. It supports images, text, and audio/effect binary buffers via manifest types. Loading is same-origin (or data) only, cached per URL/type, and resolves null on failure. Owners allow release after component/pack/render changes. Unowned completed entries use a bounded warm cache (32) so repeated switching avoids reloads without retaining all past skins. Loading errors are logged; images hide safely and missing sprite data uses geometric rendering. Atlas/image source aspect ratios are preserved. No Image is created per frame. Sound playback/effects remain optional consumers; this task adds no sound, effect files or autoplay.
+
+Only create actual asset directories: appearance/ui/icons/effects/audio/preview are conventions, not compulsory empty folders. Existing Subscriber paths remain valid.
+
+### Responsive/controller contract
+
+All layouts must fit 320px upward; use minmax(0,1fr), min-width:0 and bounded image dimensions. Creator collapses its two-column layout at 760px. HUD is outside the viewport and never follows Camera. LayoutSystem calculates cellSize from the available world region and maintains CSS/backing-buffer/DPR separation. D-Pad stays left, Brake/Boost circles right, FUNC above; all retain the exact MOVE_*/BUTTON_* token protocol and 44px targets. `viewport-fit=cover`, `100dvh` with vh fallback, and safe-area bottom padding remain. No whole-page touch prevention or fixed controller overlay is introduced.
+
+### Adding a complete pack without changing Core
+
+1. Add only approved, needed assets and an Appearance definition; ordinary geometric packs can reuse Default.
+2. Register a UI Theme and Layout Variant (or reuse either independently).
+3. Register only specialized slot components; inherit all unspecified Default slots.
+4. Register an optional ControllerStyle, SkillPresentation (labels/descriptions) and SkillSet (existing skill configuration).
+5. Associate these IDs in ThemePackRegistry and add `themePackId` to the existing Skin definition. Unlock through the existing services, never UI CSS.
+6. Import/register content in main.js; run contract/browser tests. No Snake/Collision/GameLoop edits.
+
+Minimal example:
+
+```js
+themePackRegistry.register('sample',{appearanceId:'default',layoutVariantId:'default',
+  uiThemeId:'sample',skillSetId:'default',version:1});
+uiThemeRegistry.register('sample',{tokens:{'--ui-border':'#777777'},
+  components:{HUD:'sample/HUD',StartScreen:'sample/StartScreen',GameOver:'sample/GameOver'}});
+skinRegistry.register('sample',{displayName:'Sample',themePackId:'sample',mechanics:[]});
+```
+
+Use the above mount contract for a dedicated StartScreen: show only READY and delegate `start`; GameOver reads the same score/best/length/time snapshot and delegates `restart`. `renderStart` / `renderOver` are reusable update helpers, not rules. Future card-style HUD, card preview, draw/activate button presentation and map-event overlays can register these slots/presentation IDs and existing mechanics hooks. No card art or third-party characters are added now; obtain rights before using them. Truly new engine primitives must be scoped separately; this contract does not promise arbitrary new gameplay without any engine work.
+
+## Theme V1 verification
+
+Run contracts with `node --test games/snake/tests/theme-contract.test.mjs`. Serve the repo with a static HTTP server; run `tests/theme-browser.cjs` with `PLAYWRIGHT_MODULE` set to an existing install and optionally `CHROME_PATH`, `SNAKE_TEST_URL`, `SNAKE_TEST_OUTPUT`. No package dependency or production debug hook is added. The runner intercepts only its own main.js response to inspect the real systems. Fixtures set collision/score boundaries for deterministic checks; clicks, keys, touch taps and transitions still execute production paths.
+
+See `THEME_PACK_ACCEPTANCE.md` for audit, acceptance matrix, limits and staged commits. Browser emulation is not an iPhone Safari hardware certification.

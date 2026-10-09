@@ -4,7 +4,7 @@ const topSlots=['Header','HUD','Status','Setup','WorldViewport','Controller'];
 
 export class ComponentHost {
   constructor({root,registry,assets,logger=console}){
-    Object.assign(this,{root,registry,assets,logger});this.hosts=new Map();this.bases=new Map();this.mounted=new Map();this.tokens=new Set();this.sequence=0;this.layoutKey='';this.contextKey='';this.pending=new Set();this.failed=new Set();
+    Object.assign(this,{root,registry,assets,logger});this.hosts=new Map();this.bases=new Map();this.mounted=new Map();this.tokens=new Set();this.sequence=0;this.layoutKey='';this.contextKey='';this.pending=new Set();
     for(const slot of UI_SLOTS){const base=document.querySelector(bootstrap[slot]);if(!base)throw new Error(`Missing default slot: ${slot}`);const host=document.createElement('div');host.dataset.uiSlot=slot;host.className='ui-slot';base.replaceWith(host);host.append(base);this.hosts.set(slot,host);this.bases.set(slot,base);}
   }
   warn(slot,error){this.logger.warn(`[Snake UI] ${slot} → Default`,error);}
@@ -16,7 +16,7 @@ export class ComponentHost {
       this.root.replaceChildren(...containers,this.hosts.get('RedeemModal'),this.hosts.get('CheatAuthModal'));
     };
     try{arrange(context.regions);this.root.dataset.layout=context.layoutVariantId;}catch(error){this.warn('Layout',error);arrange([{id:'main',slots:topSlots}]);this.root.dataset.layout='default';}
-    this.layoutKey=key;this.failed.clear();
+    this.layoutKey=key;
   }
   applyTokens(context){
     const key=JSON.stringify(context.tokens);if(key===this.contextKey)return;
@@ -34,7 +34,7 @@ export class ComponentHost {
       if(slot==='WorldViewport'&&instance.element!==this.bases.get(slot))throw new Error('WorldViewport must preserve the engine surface');
       this.hosts.get(slot).replaceChildren(instance.element);instance.element.dataset.component=definition.id;
       const entry={requested,definition,instance,abort,owner};this.mounted.set(slot,entry);instance.update(args);return entry;
-    }catch(error){abort.abort();this.assets.release(owner);this.warn(slot,error);if(definition.id===`default/${slot}`)throw error;this.failed.add(`${slot}:${requested}`);return this.install(slot,this.registry.get(`default/${slot}`),requested,args);}
+    }catch(error){abort.abort();this.assets.release(owner);this.warn(slot,error);if(definition.id===`default/${slot}`)throw error;return this.install(slot,this.registry.get(`default/${slot}`),requested,args);}
   }
   render(viewModel,actions,themeContext){
     this.arrange(themeContext);this.applyTokens(themeContext);
@@ -46,7 +46,7 @@ export class ComponentHost {
         if(!definition)this.warn(slot,new Error(`Unregistered component: ${requested}`));
         entry=this.install(slot,definition?.mount?definition:fallback,requested,args);
         if(definition?.load){const generation=entry.owner;const task=Promise.resolve().then(()=>definition.load()).then(loaded=>{if(this.mounted.get(slot)?.owner!==generation)return;this.install(slot,{id:requested,...loaded},requested,this.latestArgs);}).catch(error=>this.warn(slot,error)).finally(()=>this.pending.delete(task));this.pending.add(task);}
-      }else{try{entry.instance.update(args);}catch(error){this.warn(slot,error);if(entry.definition.id!==`default/${slot}`){this.failed.add(`${slot}:${requested}`);this.install(slot,fallback,requested,args);}}}
+      }else{try{entry.instance.update(args);}catch(error){this.warn(slot,error);if(entry.definition.id!==`default/${slot}`)this.install(slot,fallback,requested,args);}}
     }
   }
   getElement(slot){return this.mounted.get(slot)?.instance.element??this.bases.get(slot);}

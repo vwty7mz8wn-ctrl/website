@@ -44,13 +44,14 @@ export class ThemeContextResolver {
     const pack=this.packFor(skin),layout=this.layout(pack.layoutVariantId,mobile);
     const controller=this.definition(this.controllers,pack.controllerStyleId);
     const presentation=this.definition(this.presentations,pack.skillPresentationId);
+    const skillSet=this.definition(this.skillSets,pack.skillSetId);
     const defaultTheme=this.theme('default'),skinTheme=this.theme(pack.uiThemeId);
     const context={pack,layoutVariantId:layout.id,regions:layout.regions,
-      appearanceId:pack.appearanceId,skillSetId:pack.skillSetId,
+      appearanceId:pack.appearanceId,skillSetId:skillSet.id,
       controllerStyleId:controller.id,skillPresentationId:presentation.id,
       tokens:{...defaultTheme.tokens,...skinTheme.tokens},
       components:{...this.layouts.get('default')?.components,...layout.components,...skinTheme.components},
-      skillLabels:presentation.labels??{},sources:['default',`skin:${pack.id}`],assets:pack.assets??[]};
+      skillLabels:{...this.presentations.get('default')?.labels,...presentation.labels},sources:['default',`skin:${pack.id}`],assets:pack.assets??[]};
     if(controller.componentId)context.components.Controller=controller.componentId;
     // Normal's legacy default theme must not erase a skin's UI language.
     const mapOverlay=map.themeOverlay??(map.uiThemeId&&map.uiThemeId!=='default'?{uiThemeId:map.uiThemeId}:null);
